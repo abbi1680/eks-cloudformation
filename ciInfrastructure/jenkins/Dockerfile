@@ -25,8 +25,8 @@ RUN /usr/local/bin/install-plugins.sh < /usr/share/jenkins/plugins.txt
 # Configure Jenkins
 ############################################
 # Jenkins Plugins Upgrade
-COPY groovy/upgradeAllPlugins.groov /usr/share/jenkins/ref/init.groovy.d/upgradeAllPlugins.groovy
+COPY groovy/upgradeAllPlugins.groovy /usr/share/jenkins/ref/init.groovy.d/upgradeAllPlugins.groovy
 
 # tell Jenkins that no banner prompt for pipeline plugins is needed
-# see: https://github.com/jenkinsci/docker#preinstalling-plugins
+# see: https://github.com/jenkinsci/docker#preinstalling-pluginsUK
 RUN echo 2.0 > /usr/share/jenkins/ref/jenkins.install.UpgradeWizard.state
