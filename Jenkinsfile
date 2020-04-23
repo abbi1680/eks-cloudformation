@@ -76,10 +76,9 @@ pipeline {
     /* Cleanup workspace */
     post {
         success {
-           slackSend ( channel: '#ops-room',
-                     color: 'good'
+           slackSend channel: '#ops-room',
+                     color: 'good',
                      message: "The pipeline ${currentBuild.fullDisplayName} completed successfully." 
-                     )
         }
        always {
            echo "Cleaning up directory"
