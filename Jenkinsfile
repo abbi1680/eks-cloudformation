@@ -3,9 +3,6 @@ properties([pipelineTriggers([githubPush()])])
 pipeline {
     agent any
     stages {
-        stage ('Checkout') {
-            checkout scm
-        }
         stage('Lint Dockerfile') {
             steps {
                 script{
@@ -23,7 +20,6 @@ pipeline {
                         '''
                     }
                 }
-                sh 'hadolint Dockerfile'
             }
         }
         stage('Build Container Image') {
@@ -50,8 +46,7 @@ pipeline {
                         variable: 'KUBECONFIG')]) {
                             sh 'kubectl apply -f deployment.yaml -n staging'
                     }
-                }
-            }
+        }
         stage('Post Deploy Test') {
             steps {
                 echo "Testing"
