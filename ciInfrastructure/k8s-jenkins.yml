@@ -65,8 +65,8 @@ subjects:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-    creationTimestamp: null
     name: kubectl-jenkins-context
+    namespace: ci
 data:
     kubectl-config-context.sh: |-
         #!/bin/bash -v
@@ -118,7 +118,7 @@ spec:
         spec:
             serviceAccountName: jenkins
             initContainers:
-                - image: lachlanevenson/k8s-kubectl:v1.11.2
+                - image: lachlanevenson/k8s-kubectl:v1.18.2
                   name: kubectl-config
                   command:
                     - "/bin/sh"
@@ -131,7 +131,7 @@ spec:
                       mountPath: "/kubectl-config-context.sh"
                       subPath: "kubectl-config-context.sh"
             containers:
-                - image: quay.io/mansong/jenkins:latest
+                - image: mansong/jenkins:latest
                   name: jenkins
                   securityContext:
                     privileged: true
