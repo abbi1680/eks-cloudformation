@@ -2,6 +2,10 @@ properties([pipelineTriggers([githubPush()])])
 
 pipeline {
     agent any
+    environment {
+        registry = "mansong/resnet_tfserving"
+        registryCredential = "dockerhub"
+    }
     stages {
         stage('Lint Dockerfile') {
             steps {
@@ -23,34 +27,44 @@ pipeline {
             }
         }
         stage('Build Container Image') {
-            sh 'docker image build -t mansong/resnet_tfserving .'
+            steps {
+                script {
+                    def resnetImage = docker.build registry + ":${env.BUILD_ID}"
+                }
+            }
         }
         stage ('Scan Container Image') {
-            aquaMicroscanner imageName: 'mansong/resnet_tfserving', notCompliesCmd: 'exit 1', onDisallowed: 'fail', outputFormat: 'html'
+           steps {
+               aquaMicroscanner imageName: "${registry}", notCompliesCmd: 'exit 1', onDisallowed: 'fail', outputFormat: 'html'
+            }
         }
         stage('Push Container Image') {
-            withCredentials([
-                usernamePassword(credentialsId: 'docker-credentials',
-                        usernameVariable: 'USERNAME',
-                        passwordVariable: 'PASSWORD')]) {
-                            sh 'docker login -p "${PASSWORD}" -u "${USERNAME}"'
-                            sh 'docker image push ${USERNAME}/mansong/resnet_tfserving:latest'
-                        }
+            steps {
+                script {
+                    docker.withRegistry( '', registryCredential ) {
+                        resnetImage.push()
+                        resnetImage.push('latest')
+                    }
+                }
+            }
         }
         stage ('Security Analysis - k8s Resource ') {
-            sh 'docker run -i kubesec/kubesec:v2 scan /dev/stdin < k8s-resnet_server.yml | jq --exit-status '.score > 10' >/dev/null'
+           steps {
+               docker.image('kubesec/kubesec:v2').withRun('scan /dev/stdin < k8s-resnet_server.yml') {
+                   sh 'jq --exit-status '.score > 10' >/dev/null'
+               }
+            }
         }
         stage('Deploy') {
-            withCredentials([
-                file(credentialsId: 'kube-config',
-                        variable: 'KUBECONFIG')]) {
-                            sh 'kubectl apply -f deployment.yaml -n staging'
-                    }
-        }
+            withKubeConfig([credentialsId: 'kube-config', 
+                            serverUrl: 'https://api.k8s.my-company.com',
+                            namespace: 'staging'
+                            ]) {
+                                    sh 'kubectl apply -f my-kubernetes-directory'
+                                }
         stage('Post Deploy Test') {
             steps {
-                echo "Testing"
-                //tools/run_in_docker.sh python tensorflow_serving/example/resnet_client_grpc.py
+                    sh './tools/run_in_docker.sh python tensorflow_serving/example/resnet_client_grpc.py'
                 }
             }
     }
@@ -58,6 +72,7 @@ pipeline {
     post {
        always {
            deleteDir()
+           sh "docker rmi ${registry}:${env.BUILD_ID}"
        }
     //TODO: Submit Slack to say successful deployment
     }
