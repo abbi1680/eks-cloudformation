@@ -50,18 +50,22 @@ pipeline {
         }
         stage ('Security Analysis - k8s Resource ') {
            steps {
-               docker.image('kubesec/kubesec:v2').withRun('scan /dev/stdin < k8s-resnet_server.yml') {
-                   sh 'jq --exit-status '.score > 10' >/dev/null'
+               script {
+                    docker.image('kubesec/kubesec:v2').withRun('scan /dev/stdin < k8s-resnet_server.yml') {
+                            sh 'jq --exit-status '.score > 10' >/dev/null'
+                    }
                }
             }
         }
         stage('Deploy') {
-            withKubeConfig([credentialsId: 'kube-config', 
-                            serverUrl: 'https://api.k8s.my-company.com',
-                            namespace: 'staging'
-                            ]) {
-                                    sh 'kubectl apply -f my-kubernetes-directory'
-                                }
+            steps {
+                withKubeConfig([credentialsId: 'kube-config',
+                serverUrl: 'https://api.k8s.my-company.com',
+                namespace: 'staging'
+                ]) {
+                        sh 'kubectl apply -f k8s-resnet_server.yml'
+                    }
+            }
         }
         stage('Post Deploy Test') {
             steps {
@@ -72,9 +76,15 @@ pipeline {
     /* Cleanup workspace */
     post {
        always {
+           echo "Cleaning up directory"
            deleteDir()
+           echo "Cleaning up container image"
            sh "docker rmi ${registry}:${env.BUILD_ID}"
        }
-    //TODO: Submit Slack to say successful deployment
+       success {
+           slackSend channel: '#ops-room',
+                     color: 'good'
+                     message: "The pipeline ${currentBuild.fullDisplayName} completed successfully."
+       }
     }
 }
