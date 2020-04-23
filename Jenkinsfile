@@ -62,6 +62,7 @@ pipeline {
                             ]) {
                                     sh 'kubectl apply -f my-kubernetes-directory'
                                 }
+        }
         stage('Post Deploy Test') {
             steps {
                     sh './tools/run_in_docker.sh python tensorflow_serving/example/resnet_client_grpc.py'
