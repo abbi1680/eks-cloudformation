@@ -10,6 +10,13 @@ pipeline {
         // stage ('Start') {
         //     slackSend (color: '#FFFF00', message: "STARTED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
         // }
+        stage ('which docker'){
+            steps {
+                script{
+                    sh 'which docker'
+                }
+            }
+        }
         stage('Lint Dockerfile') {
             steps {
                 script{
