@@ -7,6 +7,9 @@ pipeline {
         registryCredential = "dockerhub"
     }
     stages {
+        // stage ('Start') {
+        //     slackSend (color: '#FFFF00', message: "STARTED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+        // }
         stage('Lint Dockerfile') {
             steps {
                 script{
@@ -75,16 +78,20 @@ pipeline {
     }
     /* Cleanup workspace */
     post {
-        success {
-           slackSend channel: '#ops-room',
-                     color: 'good',
-                     message: "The pipeline ${currentBuild.fullDisplayName} completed successfully." 
-        }
-       always {
+        always {
            echo "Cleaning up directory"
            deleteDir()
            echo "Cleaning up container image"
            sh "docker rmi ${registry}:${env.BUILD_ID}"
        }
+        success {
+           slackSend (channel: '#ops-room',
+                     color: 'good',
+                     message: "The pipeline ${currentBuild.fullDisplayName} completed successfully.")
+        }
+        failure {
+            slackSend (color: '#FF0000', message: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+        }
+
     }
 }
