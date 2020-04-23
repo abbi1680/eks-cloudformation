@@ -75,16 +75,17 @@ pipeline {
     }
     /* Cleanup workspace */
     post {
+        success {
+           slackSend ( channel: '#ops-room',
+                     color: 'good'
+                     message: "The pipeline ${currentBuild.fullDisplayName} completed successfully." 
+                     )
+        }
        always {
            echo "Cleaning up directory"
            deleteDir()
            echo "Cleaning up container image"
            sh "docker rmi ${registry}:${env.BUILD_ID}"
-       }
-       success {
-           slackSend channel: '#ops-room',
-                     color: 'good'
-                     message: "The pipeline ${currentBuild.fullDisplayName} completed successfully."
        }
     }
 }
