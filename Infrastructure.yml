@@ -1,0 +1,932 @@
+Description: >
+    Martin Ansong / Udacity 2020
+    This template creates and deploys the infrastructure and application for a JenkinsServer and an EKS Cluster
+Parameters:
+
+    BastionAMIOS:
+        AllowedValues:
+            - Amazon-Linux2-HVM
+            - Amazon-Linux-HVM
+            - CentOS-7-HVM
+            - Ubuntu-Server-18.04-LTS-HVM
+            - Ubuntu-Server-16.04-LTS-HVM
+            - SUSE-SLES-15-HVM
+        Default: Ubuntu-Server-16.04-LTS-HVM
+        Description: The Linux distribution for the AMI to be used for the bastion instances.
+        Type: String
+
+    AppNodeAMIOS:
+        AllowedValues:
+            - Amazon-Linux2-HVM
+            - Amazon-Linux-HVM
+            - CentOS-7-HVM
+            - Ubuntu-Server-18.04-LTS-HVM
+            - Ubuntu-Server-16.04-LTS-HVM
+            - SUSE-SLES-15-HVM
+        Default: Ubuntu-Server-18.04-LTS-HVM
+        Description: The Linux distribution for the AMI to be used for the AppNode instances.
+        Type: String
+
+    BastionHostName:
+        Default: 'LinuxBastion'
+        Description: The value used for the name tag of the bastion host
+        Type: String
+
+    BastionBanner:
+        Default: https://aws-quickstart.s3.us-east-1.amazonaws.com/quickstart-linux-bastion/scripts/banner_message.txt
+        Description: Banner text to display upon login.
+        Type: String
+
+    BastionTenancy:
+        Description: 'VPC tenancy to launch the bastion in. Options: ''dedicated'' or ''default'''
+        Type: String
+        Default: default
+        AllowedValues:
+            - dedicated
+            - default
+
+    BastionInstanceType:
+        AllowedValues:
+            - t2.nano
+            - t2.micro
+            - t2.small
+            - t2.medium
+        Default: t2.micro
+        Description: Amazon EC2 instance type for the bastion instances.
+        Type: String
+
+    EnableBanner:
+        AllowedValues:
+            - 'true'
+            - 'false'
+        Default: 'false'
+        Description: To include a banner to be displayed when connecting via SSH to the bastion, choose true.
+        Type: String
+
+    EnableTCPForwarding:
+        Type: String
+        Description: To enable TCP forwarding, choose true.
+        Default: 'false'
+        AllowedValues:
+            - 'true'
+            - 'false'
+    
+    EnableX11Forwarding:
+        Type: String
+        Description: To enable X11 forwarding, choose true.
+        Default: 'false'
+        AllowedValues:
+        - 'true'
+        - 'false'
+    
+    NumBastionHosts:
+        AllowedValues:
+        - '1'
+        - '2'
+        - '3'
+        - '4'
+        Default: '1'
+        Description: The number of bastion hosts to create. The maximum number is four.
+        Type: String
+
+    RootVolumeSize:
+        Description: The size in GB for the root EBS volume.
+        Type: Number
+        Default: '10'
+
+    EnvironmentVariables:
+        Description: A comma-separated list of environment variables for use in bootstrapping. Variables must be in the format KEY=VALUE. VALUE cannot contain commas.
+        Type: String
+        Default: ''
+
+    KeyPairName:
+        Description: Keyname used to ssh into Bsstion Hosts
+        Type: AWS::EC2::KeyPair::KeyName
+    
+    MinAutoScalingGroupSize:
+        Description: Minimum size for AutoScalingGroup. Default is 1
+        Type: String
+        Default: 1
+    
+    MaxAutoScalingGroupSize:
+        Description: Maximum size for AutoScalingGroup. Default is 2
+        Type: String
+        Default: 2
+    
+    EnvironmentName:
+        Description: An environment name that will be prefixed to resource names
+        Type: String
+    
+    S3BucketUrl:
+        NoEcho: true
+        Type: String
+        Description: s3Bucket url used to download zipped file from
+    
+    EbsVolumeSize:
+        Type: String
+        Description: Size of Ebs volume mount. Default is 10 (Gb)
+        Default: 10
+    
+    InstanceTypeParameter:
+        Type: String
+        AllowedValues:
+            - t2.micro
+            - t2.nano
+            - t2.medium
+        Description: Enter t2.micro, t2.nano, or t2.medium. Default is t2.micro
+        Default: t2.micro
+
+    VpcCIDR: 
+        Description: Please enter the IP range (CIDR notation) for this VPC
+        Type: String
+
+    PublicSubnet1CIDR:
+        Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+        Type: String
+
+    PublicSubnet2CIDR:
+        Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+        Type: String
+
+    PrivateSubnet1CIDR:
+        Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+        Type: String
+
+    PrivateSubnet2CIDR:
+        Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+        Type: String
+
+Conditions:
+    2BastionCondition: !Or
+        - !Equals [!Ref NumBastionHosts, '2']
+        - !Condition 3BastionCondition
+        - !Condition 4BastionCondition
+    3BastionCondition: !Or
+        - !Equals [!Ref NumBastionHosts, '3']
+        - !Condition 4BastionCondition
+    4BastionCondition: !Equals [!Ref NumBastionHosts, '4']
+
+Mappings:
+    AWSAMIRegionMap:
+        us-east-1:
+            AMZNLINUX2: ami-0a887e401f7654935
+            AMZNLINUXHVM: ami-0e2ff28bfb72a4e45
+            CENTOS7HVM: ami-02eac2c0129f6376b
+            US1604HVM: ami-08bc77a2c7eb2b1da
+            SLES15HVM: ami-0b1764f3d7d2e2316
+            US1804HVM: ami-07ebfd5b3428b6f4d
+        us-east-2:
+            AMZNLINUX2: ami-0e38b48473ea57778
+            AMZNLINUXHVM: ami-0998bf58313ab53da
+            CENTOS7HVM: ami-0f2b4fc905b0bd1f1
+            US1604HVM: ami-08cec7c429219e339
+            SLES15HVM: ami-05ea824317ffc0c20
+            US1804HVM: ami-0fc20dd1da406780b
+        us-west-1:
+            US1804HVM: ami-03ba3948f6c37a4b0
+            AMZNLINUX2: ami-01c94064639c71719
+            AMZNLINUXHVM: ami-021bb9f371690f97a
+            CENTOS7HVM: ami-074e2d6769f445be5
+            US1604HVM: ami-094f0176b0d009d9f
+            SLES15HVM: ami-00e34a7624e5a7107
+        us-west-2:
+            AMZNLINUX2: ami-0d6621c01e8c2de2c
+            AMZNLINUXHVM: ami-01f08ef3e76b957e5
+            CENTOS7HVM: ami-01ed306a12b7d1c96
+            SLES15HVM:  ami-0fde69c9f9f78ae47
+            US1804HVM: ami-0d1cd67c26f5fca19
+            US1604HVM: ami-02d0ea44ae3fe9561
+    LinuxAMINameMap:
+        Amazon-Linux2-HVM:
+            Code: AMZNLINUX2
+        Amazon-Linux-HVM:
+            Code: AMZNLINUXHVM
+        CentOS-7-HVM:
+            Code: CENTOS7HVM
+        Ubuntu-Server-18.04-LTS-HVM:
+            Code: US1804HVM
+        Ubuntu-Server-16.04-LTS-HVM:
+            Code: US1604HVM
+        SUSE-SLES-15-HVM:
+            Code: SLES15HVM
+
+Resources:
+
+    VPC: 
+        Type: AWS::EC2::VPC
+        Properties:
+            CidrBlock: !Ref VpcCIDR
+            EnableDnsHostnames: true
+            Tags: 
+                - Key: Name 
+                  Value: !Ref EnvironmentName
+            
+    InternetGateway:
+        Type: AWS::EC2::InternetGateway
+        Properties:
+            Tags:
+                - Key: Name
+                  Value: !Ref EnvironmentName
+            
+    InternetGatewayAttachment:
+        Type: AWS::EC2::VPCGatewayAttachment
+        Properties:
+            InternetGatewayId: !Ref InternetGateway
+            VpcId: !Ref VPC
+
+    PublicSubnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC
+            AvailabilityZone: !Select [ 0, !GetAZs '' ]
+            CidrBlock: !Ref PublicSubnet1CIDR
+            MapPublicIpOnLaunch: true
+            Tags: 
+                - Key: Name 
+                  Value: !Sub EnvironmentName} Public Subnet (AZ1)
+
+    PublicSubnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC
+            AvailabilityZone: !Select [ 1, !GetAZs '' ]
+            CidrBlock: !Ref PublicSubnet2CIDR
+            MapPublicIpOnLaunch: true
+            Tags: 
+                - Key: Name 
+                  Value: !Sub ${EnvironmentName} Public Subnet (AZ2)
+
+    PrivateSubnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC
+            AvailabilityZone: !Select [ 0, !GetAZs '' ]
+            CidrBlock: !Ref PrivateSubnet1CIDR
+            MapPublicIpOnLaunch: false
+            Tags: 
+                - Key: Name 
+                  Value: !Sub ${EnvironmentName} Private Subnet (AZ1)
+
+    PrivateSubnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC
+            AvailabilityZone: !Select [ 1, !GetAZs '' ]
+            CidrBlock: !Ref PrivateSubnet2CIDR
+            MapPublicIpOnLaunch: false
+            Tags: 
+                - Key: Name 
+                  Value: !Sub ${EnvironmentName} Private Subnet (AZ2)
+
+    NatGateway1EIP:
+        Type: AWS::EC2::EIP
+        DependsOn: InternetGatewayAttachment
+        Properties: 
+            Domain: vpc
+
+    NatGateway2EIP:
+        Type: AWS::EC2::EIP
+        DependsOn: InternetGatewayAttachment
+        Properties:
+            Domain: vpc
+
+    NatGateway1:
+        Type: AWS::EC2::NatGateway
+        Properties: 
+            AllocationId: !GetAtt NatGateway1EIP.AllocationId
+            SubnetId: !Ref PublicSubnet1
+
+    NatGateway2:
+        Type: AWS::EC2::NatGateway
+        Properties:
+            AllocationId: !GetAtt NatGateway2EIP.AllocationId
+            SubnetId: !Ref PublicSubnet2
+
+    PublicRouteTable:
+        Type: AWS::EC2::RouteTable
+        Properties: 
+            VpcId: !Ref VPC
+            Tags: 
+                - Key: Name 
+                  Value: !Sub ${EnvironmentName} Public Routes
+
+    DefaultPublicRoute:
+        Type: AWS::EC2::Route
+        DependsOn: InternetGatewayAttachment
+        Properties: 
+            RouteTableId: !Ref PublicRouteTable
+            DestinationCidrBlock: 0.0.0.0/0
+            GatewayId: !Ref InternetGateway
+
+    PublicSubnet1RouteTableAssociation:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref PublicRouteTable
+            SubnetId: !Ref PublicSubnet1
+
+    PublicSubnet2RouteTableAssociation:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref PublicRouteTable
+            SubnetId: !Ref PublicSubnet2
+    
+
+    PrivateRouteTable1:
+        Type: AWS::EC2::RouteTable
+        Properties: 
+            VpcId: !Ref VPC
+            Tags: 
+                - Key: Name 
+                  Value: !Sub ${EnvironmentName} Private Routes (AZ1)
+
+    DefaultPrivateRoute1:
+        Type: AWS::EC2::Route
+        Properties:
+            RouteTableId: !Ref PrivateRouteTable1
+            DestinationCidrBlock: 0.0.0.0/0
+            NatGatewayId: !Ref NatGateway1
+
+    PrivateSubnet1RouteTableAssociation:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref PrivateRouteTable1
+            SubnetId: !Ref PrivateSubnet1
+
+    PrivateRouteTable2:
+        Type: AWS::EC2::RouteTable
+        Properties: 
+            VpcId: !Ref VPC
+            Tags: 
+                - Key: Name
+                  Value: !Sub ${EnvironmentName} Private Routes (AZ2)
+
+    DefaultPrivateRoute2:
+        Type: AWS::EC2::Route
+        Properties:
+            RouteTableId: !Ref PrivateRouteTable2
+            DestinationCidrBlock: 0.0.0.0/0
+            NatGatewayId: !Ref NatGateway2
+
+    PrivateSubnet2RouteTableAssociation:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref PrivateRouteTable2
+            SubnetId: !Ref PrivateSubnet2
+
+    WebAppLaunchConfig:
+        Type: AWS::AutoScaling::LaunchConfiguration 
+        Properties:
+            InstanceType:
+                Ref: InstanceTypeParameter
+            IamInstanceProfile: !Ref ProfileWithRolesForOurApp
+            ImageId: !FindInMap
+                - AWSAMIRegionMap
+                - !Ref 'AWS::Region'
+                - !FindInMap 
+                    - LinuxAMINameMap
+                    - !Ref AppNodeAMIOS
+                    - Code
+            SecurityGroups:
+                - Ref: WebServerSecGroup
+            BlockDeviceMappings:
+            - DeviceName: "/dev/sdk"
+              Ebs:
+                VolumeSize: !Ref EbsVolumeSize
+            UserData: 
+                Fn::Base64: 
+                    Fn::Sub:
+                    - |
+                        #!/bin/bash
+                        apt-get update -y
+                        apt-get install unzip awscli -y
+                        apt-get install apache2 -y
+                        systemctl start apache2.service
+                        rm /var/www/html/*
+                        aws s3 cp ${s3Bucket} /var/www/html
+                        cd /var/www/html/
+                        unzip -o udacity.zip
+                        systemctl restart apache2.service
+                    -  s3Bucket: !Ref S3BucketUrl
+
+    WebAppGroup:
+        Type: AWS::AutoScaling::AutoScalingGroup
+        Properties:
+            VPCZoneIdentifier: [ !Ref PrivateSubnet1, !Ref PrivateSubnet2 ]
+            LaunchConfigurationName:
+                Ref: WebAppLaunchConfig
+            MinSize: !Ref MinAutoScalingGroupSize
+            MaxSize: !Ref MaxAutoScalingGroupSize
+            TargetGroupARNs:
+            - Ref: WebAppTargetGoup
+
+    WebAppLB:
+        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+        Properties:
+            Subnets:
+                - !Ref PublicSubnet1
+                - !Ref PublicSubnet2
+            SecurityGroups:
+                - Ref: LBSecGroup
+    Listener:
+        Type: AWS::ElasticLoadBalancingV2::Listener
+        Properties:
+            DefaultActions:
+            - Type: forward
+              TargetGroupArn:
+                Ref: WebAppTargetGoup
+            LoadBalancerArn:
+                Ref: WebAppLB
+            Port: '80'
+            Protocol: HTTP
+
+    ALBListenerRule:
+        Type: AWS::ElasticLoadBalancingV2::ListenerRule
+        Properties:
+            Actions:
+            - Type: forward
+              TargetGroupArn: !Ref 'WebAppTargetGoup'
+            Conditions:
+            - Field: path-pattern
+              Values: [/]
+            ListenerArn: !Ref 'Listener'
+            Priority: 1
+
+    WebAppTargetGoup:
+        Type: AWS::ElasticLoadBalancingV2::TargetGroup
+        Properties: 
+            HealthCheckEnabled: true
+            HealthCheckIntervalSeconds: 10
+            HealthCheckPath: /
+            HealthCheckProtocol: HTTP
+            HealthCheckTimeoutSeconds: 8
+            HealthyThresholdCount: 2
+            Port: 80
+            Protocol: HTTP
+            Tags: 
+                - Key: Name 
+                  Value: !Ref EnvironmentName
+            UnhealthyThresholdCount: 5
+            VpcId: !Ref VPC
+
+    WebServerSecGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Allow http to our hosts and SSH from bastion hosts
+            VpcId: !Ref VPC
+            SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: 80
+              ToPort: 80
+              CidrIp: 0.0.0.0/0
+            SecurityGroupEgress:
+            - IpProtocol: tcp
+              FromPort: 0
+              ToPort: 65535
+              CidrIp: 0.0.0.0/0
+            Tags:
+                - Key: Name
+                  Value: !Ref EnvironmentName
+
+    ScaleUpPolicy:
+        Type: AWS::AutoScaling::ScalingPolicy
+        Properties:
+            AdjustmentType: ChangeInCapacity
+            AutoScalingGroupName: !Ref WebAppGroup
+            Cooldown: '1'
+            ScalingAdjustment: '1'
+
+    WebAppCPUHighAlarm:
+        Type: AWS::CloudWatch::Alarm
+        Properties:
+            AlarmName: 'WebAppCPUUsageHigh'
+            AlarmDescription: 'CPU usage is too high'
+            MetricName: 'CPUUtilization'
+            Namespace: 'AWS/EC2'
+            Statistic: 'Average'
+            Period: 300
+            EvaluationPeriods: 1
+            Threshold: '80'
+            ComparisonOperator: 'GreaterThanThreshold'
+            AlarmActions: [ !Ref 'ScaleUpPolicy' ]
+            Dimensions:
+                - Name: 'AutoScalingGroupName'
+                  Value: !Ref WebAppGroup
+
+    LBSecGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Allow http to our LoadBalancers
+            VpcId: !Ref VPC
+            SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: 80
+              ToPort: 80
+              CidrIp: 0.0.0.0/0
+            SecurityGroupEgress:
+            - IpProtocol: tcp
+              FromPort: 80
+              ToPort: 80
+              CidrIp: 0.0.0.0/0
+            Tags:
+                - Key: Name
+                  Value: !Ref EnvironmentName
+
+    UdacityS3ReadOnlyPolicy:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyName: UdacityS3ReadOnlyPolicy
+            PolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                - Effect: Allow
+                  Action:
+                  - 's3:List*'
+                  - 's3:GetObject'
+                  Resource: "*"
+            Roles:
+            - !Ref UdacityS3ReadOnlyEC2
+
+    UdacityS3ReadOnlyEC2:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                - Effect: Allow
+                  Principal:
+                    Service:
+                    - ec2.amazonaws.com
+                  Action:
+                  - sts:AssumeRole
+            Path: /
+    
+    ProfileWithRolesForOurApp:
+        DependsOn: UdacityS3ReadOnlyPolicy
+        Type: AWS::IAM::InstanceProfile
+        Properties:
+            Path: "/"
+            Roles: 
+                - !Ref UdacityS3ReadOnlyEC2
+
+    BastionMainLogGroup:
+        Type: 'AWS::Logs::LogGroup'
+
+    SSHMetricFilter:
+        Type: 'AWS::Logs::MetricFilter'
+        Properties:
+            LogGroupName: !Ref BastionMainLogGroup
+            FilterPattern: ON FROM USER PWD
+            MetricTransformations:
+                - MetricName: SSHCommandCount
+                  MetricValue: '1'
+                  MetricNamespace: !Join
+                    - /
+                    - - AWSQuickStart
+                      - !Ref 'AWS::StackName'
+
+    BastionHostRole:
+        Type: 'AWS::IAM::Role'
+        Properties:
+            Path: /
+            AssumeRolePolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                    - Effect: Allow
+                      Principal:
+                        Service:
+                        - ec2.amazonaws.com
+                      Action:
+                      - 'sts:AssumeRole'
+            ManagedPolicyArns:
+                - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforSSM'
+
+    BastionHostPolicy:
+        Type: 'AWS::IAM::Policy'
+        Properties:
+            PolicyName: BastionPolicy
+            PolicyDocument:
+                Version: 2012-10-17
+                Statement:
+                    - Action:
+                        - 's3:GetObject'
+                      Resource: !Sub "arn:${AWS::Partition}:s3:::aws-quickstart/quickstart-linux-bastion/*"
+                      Effect: Allow
+                    - Action:
+                        - 'logs:CreateLogStream'
+                        - 'logs:GetLogEvents'
+                        - 'logs:PutLogEvents'
+                        - 'logs:DescribeLogGroups'
+                        - 'logs:DescribeLogStreams'
+                        - 'logs:PutRetentionPolicy'
+                        - 'logs:PutMetricFilter'
+                        - 'logs:CreateLogGroup'
+                      Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${BastionMainLogGroup}:*"
+                      Effect: Allow
+                    - Action:
+                        - 'ec2:AssociateAddress'
+                        - 'ec2:DescribeAddresses'
+                      Resource: '*'
+                      Effect: Allow
+            Roles:
+                - !Ref BastionHostRole
+
+    BastionHostProfile:
+        DependsOn: BastionHostPolicy
+        Type: 'AWS::IAM::InstanceProfile'
+        Properties:
+            Roles:
+                - !Ref BastionHostRole
+            Path: /
+    EIP1:
+        Type: 'AWS::EC2::EIP'
+        Properties:
+            Domain: vpc
+    EIP2:
+        Type: 'AWS::EC2::EIP'
+        Condition: 2BastionCondition
+        Properties:
+            Domain: vpc
+    EIP3:
+        Type: 'AWS::EC2::EIP'
+        Condition: 3BastionCondition
+        Properties:
+            Domain: vpc
+    EIP4:
+        Type: 'AWS::EC2::EIP'
+        Condition: 4BastionCondition
+        Properties:
+            Domain: vpc
+
+    BastionAutoScalingGroup:
+        Type: 'AWS::AutoScaling::AutoScalingGroup'
+        Properties:
+            LaunchConfigurationName: !Ref BastionLaunchConfiguration
+            VPCZoneIdentifier: [ !Ref PublicSubnet1, !Ref PublicSubnet2 ]
+            MinSize: !Ref NumBastionHosts
+            MaxSize: !Ref NumBastionHosts
+            Cooldown: '300'
+            DesiredCapacity: !Ref NumBastionHosts
+            Tags:
+                - Key: Name
+                  Value: !Ref BastionHostName
+                  PropagateAtLaunch: true
+        CreationPolicy:
+            ResourceSignal:
+                Count: !Ref NumBastionHosts
+                Timeout: PT30M
+            AutoScalingCreationPolicy:
+                MinSuccessfulInstancesPercent: 100
+        UpdatePolicy:
+            AutoScalingReplacingUpdate:
+                WillReplace: true
+
+    BastionSecurityGroup:
+        Type: 'AWS::EC2::SecurityGroup'
+        Properties:
+            GroupDescription: Enables SSH Access to Bastion Hosts
+            VpcId: !Ref VPC
+            SecurityGroupIngress:
+                - IpProtocol: tcp
+                  FromPort: 22
+                  ToPort: 22
+                  CidrIp: 0.0.0.0/0
+                - IpProtocol: icmp
+                  FromPort: -1
+                  ToPort: -1
+                  CidrIp: 0.0.0.0/0
+            Tags:
+                - Key: Name
+                  Value: !Ref EnvironmentName
+
+    BastionLaunchConfiguration:
+        Type: 'AWS::AutoScaling::LaunchConfiguration'
+        Metadata:
+            'AWS::CloudFormation::Init':
+                config:
+                    sources:
+                        /tmp/bootstrap/: https://github.com/aws-quickstart/quickstart-linux-bastion/tarball/master
+                commands:
+                    b-bootstrap:
+                        cwd: '/tmp/bootstrap/'
+                        command: !Join
+                            - ''
+                            - - ./bastion_bootstrap.sh
+                              - ' --banner '
+                              - !Ref BastionBanner
+                              - ' --enable '
+                              - !Ref EnableBanner
+                              - ' --tcp-forwarding '
+                              - !Ref EnableTCPForwarding
+                              - ' --x11-forwarding '
+                              - !Ref EnableX11Forwarding
+        Properties:
+            AssociatePublicIpAddress: true
+            PlacementTenancy: !Ref BastionTenancy
+            KeyName: !Ref KeyPairName
+            IamInstanceProfile: !Ref BastionHostProfile
+            ImageId: !FindInMap
+                - AWSAMIRegionMap
+                - !Ref 'AWS::Region'
+                - !FindInMap
+                    - LinuxAMINameMap
+                    - !Ref BastionAMIOS
+                    - Code
+            SecurityGroups:
+                - !Ref BastionSecurityGroup
+            InstanceType: !Ref BastionInstanceType
+            BlockDeviceMappings:
+                - DeviceName: /dev/xvda
+                  Ebs:
+                    VolumeSize: !Ref RootVolumeSize
+                    VolumeType: gp2
+                    Encrypted: true
+                    DeleteOnTermination: true
+            UserData:
+                Fn::Base64:
+                    Fn::Sub:
+                        -  |
+                            #!/bin/bash
+                            set -x
+                            for e in $(echo "${EnvironmentVariables}" | tr ',' ' '); do
+                                export $e
+                            done
+                            export PATH=$PATH:/usr/local/bin
+
+                            #cfn signaling functions
+                            yum install git -y || apt-get install -y git || zypper -n install git
+
+                            function cfn_fail
+                            {
+                                cfn-signal -e 1 --stack ${AWS::StackName} --region ${AWS::Region} --resource BastionAutoScalingGroup
+                                exit 1
+                            }
+
+                            function cfn_success
+                            {
+                                cfn-signal -e 0 --stack ${AWS::StackName} --region ${AWS::Region} --resource BastionAutoScalingGroup
+                                exit 0
+                            }
+
+                            until git clone https://github.com/aws-quickstart/quickstart-linux-utilities.git ; do echo "Retrying"; done
+                            cd /quickstart-linux-utilities;
+                            source quickstart-cfn-tools.source;
+                            qs_update-os || qs_err;
+                            #qs_bootstrap_pip || qs_err " pip bootstrap failed ";
+                            qs_aws-cfn-bootstrap || qs_err " cfn bootstrap failed ";
+
+                            EIP_LIST="${EIP1},${EIP2},${EIP3},${EIP4}"
+                            CLOUDWATCHGROUP=${BastionMainLogGroup}
+                            cfn-init -v --stack '${AWS::StackName}' --resource BastionLaunchConfiguration --region ${AWS::Region} || cfn_fail
+                            [ $(qs_status) == 0 ] && cfn_success || cfn_fail 
+                        - EIP2: !If
+                            - 2BastionCondition
+                            - !Ref EIP2
+                            - 'Null'
+                          EIP3: !If
+                            - 3BastionCondition
+                            - !Ref EIP3
+                            - 'Null'
+                          EIP4: !If
+                            - 4BastionCondition
+                            - !Ref EIP4
+                            - 'Null'
+
+Outputs:
+
+    VPC: 
+        Description: A reference to the created VPC
+        Value: !Ref VPC
+        Export:
+          Name: !Sub ${EnvironmentName}-VPCID
+
+    VPCPublicRouteTable:
+        Description: Public Routing
+        Value: !Ref PublicRouteTable
+        Export:
+          Name: !Sub ${EnvironmentName}-PUB-RT
+
+    VPCPrivateRouteTable1:
+        Description: Private Routing AZ1
+        Value: !Ref PrivateRouteTable1
+        Export:
+          Name: !Sub ${EnvironmentName}-PRI1-RT
+
+    VPCPrivateRouteTable2:
+        Description: Private Routing AZ2
+        Value: !Ref PrivateRouteTable2
+        Export:
+          Name: !Sub ${EnvironmentName}-PRI2-RT
+
+    PublicSubnets:
+        Description: A list of the public subnets
+        Value: !Join [ ",", [ !Ref PublicSubnet1, !Ref PublicSubnet2 ]]
+        Export:
+          Name: !Sub ${EnvironmentName}-PUB-NETS
+
+    PrivateSubnets:
+        Description: A list of the private subnets
+        Value: !Join [ ",", [ !Ref PrivateSubnet1, !Ref PrivateSubnet2 ]]
+        Export:
+          Name: !Sub ${EnvironmentName}-PRIV-NETS
+
+    PublicSubnet1:
+        Description: A reference to the public subnet in the 1st Availability Zone
+        Value: !Ref PublicSubnet1
+        Export:
+          Name: !Sub ${EnvironmentName}-PUB1-SN
+
+    PublicSubnet2: 
+        Description: A reference to the public subnet in the 2nd Availability Zone
+        Value: !Ref PublicSubnet2
+        Export:
+          Name: !Sub ${EnvironmentName}-PUB2-SN
+
+    PrivateSubnet1:
+        Description: A reference to the private subnet in the 1st Availability Zone
+        Value: !Ref PrivateSubnet1
+        Export:
+          Name: !Sub ${EnvironmentName}-PRI1-SN
+
+    PrivateSubnet2: 
+        Description: A reference to the private subnet in the 2nd Availability Zone
+        Value: !Ref PrivateSubnet2
+        Export:
+          Name: !Sub ${EnvironmentName}-PRI2-SN
+    
+    StacksRegion:
+        Description: 'Region where stack is located'
+        Value: !Ref "AWS::Region"
+    
+    StackName:
+        Description: 'Stack name'
+        Value: !Sub "AWS::StackName"
+    
+    DNSName:
+        Description: 'The DNS name for the ECS cluster/service load balancer.'
+        Value: !GetAtt 'WebAppLB.DNSName'
+        Export:
+            Name: !Sub "${AWS::StackName}-DNSName"
+    
+    LoadBalancerUrl:
+        Description: The URL of the ALB
+        Value: !Sub "http://${WebAppLB.DNSName}"
+        Export:
+            Name: !Sub "${AWS::StackName}-URL"
+
+    Listener:
+        Description: A reference to a port 80 Listener
+        Value: !Ref Listener
+
+    WebAppCPUHighAlarm:
+        Description: 'CloudWatch to send alarms when EC2 CPU is High'
+        Value: !Ref WebAppCPUHighAlarm
+
+    BastionAutoScalingGroup:
+        Description: Auto Scaling Group Reference ID
+        Value: !Ref BastionAutoScalingGroup
+        Export:
+            Name: !Sub '${AWS::StackName}-BastionAutoScalingGroup'
+    EIP1:
+        Description: Elastic IP 1 for Bastion
+        Value: !Ref EIP1
+        Export:
+            Name: !Sub '${AWS::StackName}-EIP1'
+
+    EIP2:
+        Condition: 2BastionCondition
+        Description: Elastic IP 2 for Bastion
+        Value: !Ref EIP2
+        Export:
+            Name: !Sub '${AWS::StackName}-EIP2'
+    
+    EIP3:
+        Condition: 3BastionCondition
+        Description: Elastic IP 3 for Bastion
+        Value: !Ref EIP3
+        Export:
+            Name: !Sub '${AWS::StackName}-EIP3'
+    
+    EIP4:
+        Condition: 4BastionCondition
+        Description: Elastic IP 4 for Bastion
+        Value: !Ref EIP4
+        Export:
+            Name: !Sub '${AWS::StackName}-EIP4'
+    
+    CloudWatchLogs:
+        Description: CloudWatch Logs GroupName. SSH logs stored here.
+        Value: !Ref BastionMainLogGroup
+        Export:
+            Name: !Sub '${AWS::StackName}-CloudWatchLogs'
+    
+    BastionSecurityGroupID:
+        Description: Bastion Security Group ID
+        Value: !Ref BastionSecurityGroup
+        Export:
+            Name: !Sub '${AWS::StackName}-BastionSecurityGroupID'
+    
+    BastionHostRole:
+        Description: Bastion IAM Role name
+        Value: !Ref BastionHostRole
+        Export:
+            Name: !Sub '${AWS::StackName}-BastionHostRole'
