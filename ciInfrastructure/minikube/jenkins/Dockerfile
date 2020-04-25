@@ -3,6 +3,7 @@ FROM jenkins/jenkins:latest
 USER root
 RUN apt-get update \
       && apt-get install -y sudo curl\
+      && apt-get install jq \
       && apt-get install -y libltdl7\
       && rm -rf /var/lib/apt/lists/*
 RUN echo "jenkins ALL=NOPASSWD: ALL" >> /etc/sudoers
@@ -15,17 +16,3 @@ RUN echo "jenkins ALL=NOPASSWD: ALL" >> /etc/sudoers
 RUN curl -fsSL https://get.docker.com/ | sh
 
 USER jenkins
-
-# installing specific list of plugins. see: https://github.com/jenkinsci/docker#preinstalling-plugins
-COPY plugins.txt /usr/share/jenkins/plugins.txt
-RUN /usr/local/bin/install-plugins.sh < /usr/share/jenkins/plugins.txt
-
-############################################
-# Configure Jenkins
-############################################
-# Jenkins Plugins Upgrade
-COPY groovy/upgradeAllPlugins.groovy /usr/share/jenkins/ref/init.groovy.d/upgradeAllPlugins.groovy
-
-# tell Jenkins that no banner prompt for pipeline plugins is needed
-# see: https://github.com/jenkinsci/docker#preinstalling-pluginsUK
-RUN echo 2.0 > /usr/share/jenkins/ref/jenkins.install.UpgradeWizard.state
