@@ -12,8 +12,7 @@ RUN echo "jenkins ALL=NOPASSWD: ALL" >> /etc/sudoers
 # see: https://issues.jenkins-ci.org/browse/JENKINS-35025
 # see: https://get.docker.com/builds/
 # see: https://wiki.jenkins-ci.org/display/JENKINS/CloudBees+Docker+Custom+Build+Environment+Plugin#CloudBeesDockerCustomBuildEnvironmentPlugin-DockerinDocker
-RUN curl -sSL -o /bin/docker https://get.docker.io/builds/Linux/x86_64/docker-latest
-RUN chmod +x /bin/docker
+RUN curl -fsSL https://get.docker.com/ | sh
 
 USER jenkins
 
