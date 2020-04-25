@@ -61,16 +61,16 @@ pipeline {
         stage('Deploy') {
             steps {
                 withKubeConfig([credentialsId: 'kube-config',
-                serverUrl: 'https://EF7841DA781EF741B7CC9F3013D99257.gr7.us-west-2.eks.amazonaws.com',
-                namespace: 'staging'
+                    serverUrl: 'https://EF7841DA781EF741B7CC9F3013D99257.gr7.us-west-2.eks.amazonaws.com',
+                    namespace: 'staging'
                 ]) {
-                        sh 'kubectl apply -f k8s-resnet_server.yml'
+                        sh 'docker run --rm --name kubectl bitnami/kubectl:latest -- apply -f k8s-resnet_server.yml'
                 }
             }
         }
         stage('Post Deploy Test') {
             steps {
-                    sh './tools/run_in_docker.sh python tensorflow_serving/example/resnet_client_grpc.py'
+                    sh './tools/run_in_docker.sh python resnet_client_grpc.py'
                 }
             }
     }
