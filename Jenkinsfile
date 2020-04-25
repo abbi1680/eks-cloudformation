@@ -20,6 +20,7 @@ pipeline {
                                     exit 1
                                 else
                                     echo "There are no errors found"
+                            fi
                             '''
                         }
                     }
