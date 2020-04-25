@@ -6,5 +6,9 @@
     {
         "ParameterKey":"NumberOfWorkerNodes",
         "ParameterValue": "3"
+    },
+    {
+        "ParameterKey":"VPCStackName",
+        "ParameterValue": "capston"
     }
 ]

@@ -13,6 +13,10 @@ Parameters:
     Description: Nubmer of desired worker nodes
     Type: Number
   
+  VPCStackName:
+    Description: Name for vpcstack to import values
+    Type: String
+  
 
 Resources:
 
@@ -25,12 +29,12 @@ Resources:
       ResourcesVpcConfig:
         SecurityGroupIds:
         - Fn::ImportValue:
-            !Sub "${AWS::StackName}-Sec"
+            !Sub "${VPCStackName}-Sec"
         SubnetIds:
             Fn::Split:
                 - ","
                 - Fn::ImportValue:
-                      Fn::Sub: ${AWS::StackName}-Priv-Subnets
+                      Fn::Sub: ${VPCStackName}-Priv-Subnets
 
   # ClusterWorkerNodes
 
@@ -65,7 +69,7 @@ Resources:
       Properties:
         GroupDescription: Security group for the nodes.
         VpcId:
-          Fn::ImportValue: !Sub "${AWS::StackName}-VPCID"
+          Fn::ImportValue: !Sub "${VPCStackName}-VPCID"
         SecurityGroupIngress:
           - IpProtocol: tcp
             FromPort: 0
@@ -115,7 +119,7 @@ Resources:
           Fn::Split:
               - ","
               - Fn::ImportValue:
-                  Fn::Sub: $${AWS::StackName}-SBN-IDS
+                  Fn::Sub: ${VPCStackName}-Priv-Subnets
         Tags:
           - Key: Name
             Value: 
@@ -135,8 +139,8 @@ Resources:
       Properties:
         AssociatePublicIpAddress: true
         IamInstanceProfile: !Ref WorkerNodeInstanceProfile
-        ImageId: ami-01ffee931e45bb6bf
-        InstanceType: m3.medium
+        ImageId: ami-0f53c7a1236d06961
+        InstanceType: t2.medium
         SecurityGroups:
         - !Ref WorkerNodesSecurityGroup
         BlockDeviceMappings:
