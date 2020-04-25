@@ -43,8 +43,8 @@ pipeline {
         stage('Push Container Image') {
             steps {
                 script {
+                    def image = "${env.registry}:${env.BUILD_ID}"
                     docker.withRegistry( '', "${env.registryCredential}" ) {
-                        def image = "${env.registry}:${env.BUILD_ID}"
                         image.push()
                         image.push('latest')
                     }
