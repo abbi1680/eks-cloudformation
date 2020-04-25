@@ -44,7 +44,9 @@ EXPOSE 8501
 
 # Set where models should be stored in the container
 ENV MODEL_BASE_PATH=/models
+ENV MODEL_NAME=resnet
 RUN mkdir -p ${MODEL_BASE_PATH}
+RUN mkdir -p ${MODEL_BASE_PATH}/${MODEL_NAME}
 
 # The only required piece is the model name in order to differentiate endpoints
 ENV MODEL_NAME=resnet
