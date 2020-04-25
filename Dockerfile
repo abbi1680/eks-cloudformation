@@ -13,9 +13,9 @@
 # limitations under the License.
 
 ARG TF_SERVING_VERSION=latest
-ARG TF_SERVING_BUILD_IMAGE=tensorflow/serving:${TF_SERVING_VERSION}-devel
+ARG TF_SERVING_BUILD_IMAGE=tensorflow/serving
 
-FROM ${TF_SERVING_BUILD_IMAGE} as build_image
+FROM ${TF_SERVING_BUILD_IMAGE}:${TF_SERVING_VERSION}-devel as build_image
 FROM ubuntu:18.04
 
 ARG TF_SERVING_VERSION_GIT_BRANCH=master
@@ -25,6 +25,7 @@ LABEL maintainer="martin.ansong@gmail.com"
 LABEL tensorflow_serving_github_branchtag=${TF_SERVING_VERSION_GIT_BRANCH}
 LABEL tensorflow_serving_github_commit=${TF_SERVING_VERSION_GIT_COMMIT}
 
+# hadolint ignore=DL3008
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -53,11 +54,13 @@ ENV MODEL_NAME=resnet
 ENV MODEL_URL=http://download.tensorflow.org/models/official/20181001_resnet/savedmodels/resnet_v2_fp32_savedmodel_NHWC_jpg.tar.gz
 
 # Download Resnet Model
+# hadolint ignore=DL4006
 RUN curl -s ${MODEL_URL} | tar --strip-components=2 -C ${MODEL_BASE_PATH}/${MODEL_NAME} -xvz
 
 # Create a script that runs the model server so we can use environment variables
 # while also passing in arguments from the docker command line
-RUN echo '#!/bin/bash \n\n\
+# hadolint ignore=SC2145,SC2027,SC2068,SC2016
+RUN printf '#!/bin/bash \n\n\
 tensorflow_model_server --port=8500 --rest_api_port=8501 \
 --model_name=${MODEL_NAME} --model_base_path=${MODEL_BASE_PATH}/${MODEL_NAME} \
 "$@"' > /usr/bin/tf_serving_entrypoint.sh \
