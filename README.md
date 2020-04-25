@@ -32,3 +32,9 @@ spec:
 ```
 
 ## Infrastructure Architecture
+
+
+
+## GitOps
+
+We will be using GitOps methodology to manage deployments into our cluster. See [here](https://eksctl.io/gitops-quickstart/setup-gitops/)

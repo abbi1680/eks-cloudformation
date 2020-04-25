@@ -2,6 +2,7 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: resnet-deployment
+  namespace: staging
 spec:
   replicas: 3
   template:
@@ -25,6 +26,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  namespace: staging
   labels:
     run: resnet-service
   name: resnet-service
