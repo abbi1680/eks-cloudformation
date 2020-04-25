@@ -10,32 +10,24 @@ pipeline {
         // stage ('Start') {
         //     slackSend (color: '#FFFF00', message: "STARTED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
         // }
-        stage ('which docker'){
-            steps {
-                script{
-                    sh 'which docker'
-                }
-            }
-        }
         stage('Lint Dockerfile') {
             steps {
                 script{
                     docker.image('hadolint/hadolint:latest').inside() {
-                        sh 'hadolint ./Dockerfile | tee -a hadolint_lint.txt'
+                        sh 'hadolint ./Dockerfile | tee -a hadolint_lint.txt > dev/null 2>&1'
                         sh '''
-                            lintErrors=$(stat --printf="%s"  hadolint_lint.txt)
-                            if [ "$lintErrors" -gt "0" ]; then
-                                echo "Errors have been found, please see below"
-                                cat hadolint_lint.txt
-                                exit 1
-                            else
-                                echo "There are no erros found on Dockerfile!!"
-                            fi
-                        '''
+                            if [ -s hadolint_lint.txt ]
+                                then
+                                    echo "Errors have been found, please see below"
+                                    cat hadolint_lint.txt
+                                    exit 1
+                                else
+                                    echo "There are no errors found"
+                            '''
+                        }
                     }
                 }
             }
-        }
         stage('Build Container Image') {
             steps {
                 script {
