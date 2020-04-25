@@ -37,7 +37,7 @@ pipeline {
         }
         stage ('Scan Container Image') {
            steps {
-               aquaMicroscanner localImage: "${resnetImage}", notCompliesCmd: 'exit 1', onDisallowed: 'fail', outputFormat: 'html'
+               aquaMicroscanner imageName: "${resnetImage}", notCompliesCmd: 'exit 1', onDisallowed: 'fail', outputFormat: 'html'
             }
         }
         stage('Push Container Image') {
