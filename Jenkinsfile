@@ -54,9 +54,7 @@ pipeline {
         stage ('Security Analysis - k8s Resource ') {
            steps {
                script {
-                    docker.image('kubesec/kubesec').withRun('scan /dev/stdin < k8s-resnet_server.yml') {
-                            sh 'jq --exit-status '.score > 10' >/dev/null'
-                    }
+                   sh "docker run -i kubesec/kubesec:512c5e0 scan /dev/stdin < k8s-resnet_server.yml | jq --exit-status '.score > 10' >/dev/null"
                }
             }
         }
