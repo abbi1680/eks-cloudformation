@@ -61,7 +61,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 withKubeConfig([credentialsId: 'kube-config',
-                serverUrl: 'https://api.k8s.my-company.com',
+                serverUrl: 'https://EF7841DA781EF741B7CC9F3013D99257.gr7.us-west-2.eks.amazonaws.com',
                 namespace: 'staging'
                 ]) {
                         sh 'kubectl apply -f k8s-resnet_server.yml'
