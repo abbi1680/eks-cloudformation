@@ -64,7 +64,7 @@ pipeline {
                     serverUrl: 'https://EF7841DA781EF741B7CC9F3013D99257.gr7.us-west-2.eks.amazonaws.com',
                     namespace: 'staging'
                 ]) {
-                        sh 'docker run --rm --name kubectl bitnami/kubectl:latest -- apply -f k8s-resnet_server.yml'
+                        sh 'docker run --rm --name kubectl bitnami/kubectl:latest create -f k8s-resnet_server.yml'
                 }
             }
         }
