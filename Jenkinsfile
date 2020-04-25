@@ -14,8 +14,8 @@ pipeline {
             steps {
                 script{
                     docker.image('hadolint/hadolint:latest').inside() {
-                        sh 'hadolint ./Dockerfile | tee -a hadolint_lint.txt > dev/null 2>&1'
                         sh '''
+                            hadolint ./Dockerfile | tee -a hadolint_lint.txt;
                             if [ -s hadolint_lint.txt ]
                                 then
                                     echo "Errors have been found, please see below"
