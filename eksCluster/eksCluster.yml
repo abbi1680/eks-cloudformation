@@ -1,0 +1,179 @@
+Description: >
+    Martin Ansong / Udactiy 2020 
+    This template deploys an Amazon EKS Cluster and Worker nodes 
+    Based on https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html
+
+Parameters:
+
+  EnvironmentName:
+    Description: An Environment name that will be prefixed to resources
+    Type: String
+
+  NumberOfWorkerNodes:
+    Description: Nubmer of desired worker nodes
+    Type: Number
+  
+
+Resources:
+
+  # EKS Cluster
+  UdacityCapstoneEKSCluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Version: '1.15'
+      RoleArn: arn:aws:iam::803823249935:role/ClusterRole
+      ResourcesVpcConfig:
+        SecurityGroupIds:
+        - Fn::ImportValue:
+            !Sub "${AWS::StackName}-Sec"
+        SubnetIds:
+            Fn::Split:
+                - ","
+                - Fn::ImportValue:
+                      Fn::Sub: ${AWS::StackName}-Priv-Subnets
+
+  # ClusterWorkerNodes
+
+  WorkerNodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+      - !Ref WorkerNodeInstanceRole
+  
+  WorkerNodeInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+  
+
+  WorkerNodesSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Security group for the nodes.
+        VpcId:
+          Fn::ImportValue: !Sub "${AWS::StackName}-VPCID"
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 0
+            ToPort: 65535
+            CidrIp: 0.0.0.0/0
+          - IpProtocol: tcp
+            FromPort: 1025
+            ToPort: 65535
+            CidrIp: 0.0.0.0/0
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: 0.0.0.0/0
+        SecurityGroupEgress:
+          - IpProtocol: tcp
+            FromPort: 0
+            ToPort: 65535
+            CidrIp: 0.0.0.0/0
+          - IpProtocol: tcp
+            FromPort: 1025
+            ToPort: 65535
+            CidrIp: 0.0.0.0/0
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: 0.0.0.0/0
+        Tags:
+        - Key: 
+            Fn::Sub:
+                - "kubernetes.io/cluster/${EksId}"
+                - EksId: !Ref UdacityCapstoneEKSCluster
+          Value: "owned"
+
+  WorkderNodesAutoScalingGroup:
+      UpdatePolicy:
+        AutoScalingRollingUpdate:
+          MaxBatchSize: "1"
+          MinInstancesInService: "3"
+          PauseTime: "PT5M"
+      Type: AWS::AutoScaling::AutoScalingGroup
+      Properties:
+        DesiredCapacity: !Ref NumberOfWorkerNodes
+        LaunchConfigurationName: !Ref WorkerNodeLaunchConfiguration
+        MinSize: 1
+        MaxSize: 4
+        VPCZoneIdentifier:
+          Fn::Split:
+              - ","
+              - Fn::ImportValue:
+                  Fn::Sub: $${AWS::StackName}-SBN-IDS
+        Tags:
+          - Key: Name
+            Value: 
+              Fn::Sub:
+                    - "${EksId}-CapstoneNodesGroup-Node"
+                    - EksId: !Ref UdacityCapstoneEKSCluster
+            PropagateAtLaunch: "true"
+          - Key: 
+              Fn::Sub:
+                    - "kubernetes.io/cluster/${EksId}"
+                    - EksId: !Ref UdacityCapstoneEKSCluster
+            Value: "owned"
+            PropagateAtLaunch: "true"
+
+  WorkerNodeLaunchConfiguration:
+      Type: AWS::AutoScaling::LaunchConfiguration
+      Properties:
+        AssociatePublicIpAddress: true
+        IamInstanceProfile: !Ref WorkerNodeInstanceProfile
+        ImageId: ami-01ffee931e45bb6bf
+        InstanceType: m3.medium
+        SecurityGroups:
+        - !Ref WorkerNodesSecurityGroup
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: 8
+              VolumeType: gp2
+              DeleteOnTermination: true
+        UserData:
+          Fn::Base64:
+            Fn::Sub:
+              - |
+                  #!/bin/bash
+                  set -o xtrace
+                  /etc/eks/bootstrap.sh ${EksId}
+                  /opt/aws/bin/cfn-signal --exit-code $? \
+                            --stack  ${AWS::StackName} \
+                            --resource WorkerNodesAutoScalingGroup  \
+                            --region ${AWS::Region}
+              - EksId: !Ref UdacityCapstoneEKSCluster
+
+Outputs:
+
+  EKSId:
+    Description: The EKS ID.
+    Value: !Ref UdacityCapstoneEKSCluster
+    Export: 
+        Name: !Sub ${AWS::StackName}-ClusterID
+  
+  WorkerNodeInstanceRole:
+    Description: The node instance role
+    Value: !GetAtt WorkerNodeInstanceRole.Arn
+    Export: 
+      Name: !Sub ${AWS::StackName}-InstRole
+  
+  WorkerNodesSecurityGroup:
+    Description: The security group for the nodes.
+    Value: !Ref WorkerNodesSecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-NodeSecGrp
