@@ -54,7 +54,6 @@ ENV MODEL_URL=http://download.tensorflow.org/models/official/20181001_resnet/sav
 
 # Download Resnet Model
 RUN curl -s ${MODEL_URL} | tar --strip-components=2 -C ${MODEL_BASE_PATH}/${MODEL_NAME} -xvz
-RUN ls ${MODEL_BASE_PATH}/${MODEL_NAME}
 
 # Create a script that runs the model server so we can use environment variables
 # while also passing in arguments from the docker command line
