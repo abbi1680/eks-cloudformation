@@ -37,6 +37,13 @@ pipeline {
                aquaMicroscanner imageName: "${env.registry}:${env.BUILD_ID}", notCompliesCmd: 'exit 1', onDisallowed: 'fail', outputFormat: 'html'
             }
         }
+        stage ('Security Analysis - k8s Resources ') {
+           steps {
+               script {
+                   sh "docker run -i kubesec/kubesec:v2 scan /dev/stdin < k8s-resnet_server.yml | jq --exit-status '.[0].score? > 3' >/dev/null"
+               }
+            }
+        }
         stage('Push Container Image') {
             steps {
                 script {
@@ -45,23 +52,6 @@ pipeline {
                         resnetImage.push()
                         resnetImage.push('latest')
                     }
-                }
-            }
-        }
-        stage ('Security Analysis - k8s Resource ') {
-           steps {
-               script {
-                   sh "docker run -i kubesec/kubesec:v2 scan /dev/stdin < k8s-resnet_server.yml | jq --exit-status '.[0].score? > 3' >/dev/null"
-               }
-            }
-        }
-        stage('Deploy') {
-            steps {
-                withKubeConfig([credentialsId: 'kube-config',
-                    serverUrl: 'https://EF7841DA781EF741B7CC9F3013D99257.gr7.us-west-2.eks.amazonaws.com',
-                    namespace: 'staging'
-                ]) {
-                        sh 'docker run --rm --name kubectl bitnami/kubectl:latest create -f k8s-resnet_server.yml --kubeconfig=`ls -t .kube* | head -1`'
                 }
             }
         }
