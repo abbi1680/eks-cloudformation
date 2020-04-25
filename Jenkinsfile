@@ -54,7 +54,7 @@ pipeline {
         stage ('Security Analysis - k8s Resource ') {
            steps {
                script {
-                    docker.image('kubesec/kubesec:v2').withRun('scan /dev/stdin < k8s-resnet_server.yml') {
+                    docker.image('kubesec/kubesec').withRun('scan /dev/stdin < k8s-resnet_server.yml') {
                             sh 'jq --exit-status '.score > 10' >/dev/null'
                     }
                }
@@ -84,13 +84,13 @@ pipeline {
            echo "Cleaning up container image"
            sh "docker rmi ${registry}:${env.BUILD_ID}"
        }
-        success {
-           slackSend (channel: '#ops-room',
-                     color: 'good',
-                     message: "The pipeline ${currentBuild.fullDisplayName} completed successfully.")
-        }
-        failure {
-            slackSend (color: '#FF0000', message: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
-        }
+        // success {
+        //    slackSend (channel: '#ops-room',
+        //              color: 'good',
+        //              message: "The pipeline ${currentBuild.fullDisplayName} completed successfully.")
+        // }
+        // failure {
+        //     slackSend (color: '#FF0000', message: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+        // }
     }
 }
