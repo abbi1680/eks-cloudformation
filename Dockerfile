@@ -25,11 +25,12 @@ LABEL maintainer="martin.ansong@gmail.com"
 LABEL tensorflow_serving_github_branchtag=${TF_SERVING_VERSION_GIT_BRANCH}
 LABEL tensorflow_serving_github_commit=${TF_SERVING_VERSION_GIT_COMMIT}
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
         ca-certificates \
-        && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+        curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install TF Serving pkg
 COPY --from=build_image /usr/local/bin/tensorflow_model_server /usr/bin/tensorflow_model_server
