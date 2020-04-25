@@ -44,8 +44,9 @@ pipeline {
             steps {
                 script {
                     docker.withRegistry( '', registryCredential ) {
-                        resnetImage.push()
-                        resnetImage.push('latest')
+                        def image = "${env.registry}:${env.BUILD_ID}"
+                        image.push()
+                        image.push('latest')
                     }
                 }
             }
