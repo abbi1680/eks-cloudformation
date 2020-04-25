@@ -7,27 +7,24 @@ pipeline {
         registryCredential = "dockerhub"
     }
     stages {
-        // stage ('Start') {
-        //     slackSend (color: '#FFFF00', message: "STARTED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
-        // }
-        // stage('Lint Dockerfile') {
-        //     steps {
-        //         script{
-        //             docker.image('hadolint/hadolint:latest').inside() {
-        //                 sh '''
-        //                     hadolint ./Dockerfile | tee -a hadolint_lint.txt;
-        //                     if [ -s hadolint_lint.txt ]
-        //                         then
-        //                             echo "Errors have been found, please see below"
-        //                             cat hadolint_lint.txt
-        //                             exit 1
-        //                         else
-        //                             echo "There are no errors found"
-        //                     '''
-        //                 }
-        //             }
-        //         }
-        //     }
+        stage('Lint Dockerfile') {
+            steps {
+                script{
+                    docker.image('hadolint/hadolint:latest').inside() {
+                        sh '''
+                            hadolint ./Dockerfile | tee -a hadolint_lint.txt;
+                            if [ -s hadolint_lint.txt ]
+                                then
+                                    echo "Errors have been found, please see below"
+                                    cat hadolint_lint.txt
+                                    exit 1
+                                else
+                                    echo "There are no errors found"
+                            '''
+                        }
+                    }
+                }
+            }
         stage('Build Container Image') {
             steps {
                 script {
@@ -64,15 +61,10 @@ pipeline {
                     serverUrl: 'https://EF7841DA781EF741B7CC9F3013D99257.gr7.us-west-2.eks.amazonaws.com',
                     namespace: 'staging'
                 ]) {
-                        sh 'docker run --rm --name kubectl bitnami/kubectl:latest create -f k8s-resnet_server.yml'
+                        sh 'docker run --rm --name kubectl bitnami/kubectl:latest create -f k8s-resnet_server.yml --kubeconfig=`ls -t .kube* | head -1`'
                 }
             }
         }
-        stage('Post Deploy Test') {
-            steps {
-                    sh './tools/run_in_docker.sh python resnet_client_grpc.py'
-                }
-            }
     }
     /* Cleanup workspace */
     post {
@@ -82,13 +74,5 @@ pipeline {
            echo "Cleaning up container image"
            sh "docker rmi ${registry}:${env.BUILD_ID}"
        }
-        // success {
-        //    slackSend (channel: '#ops-room',
-        //              color: 'good',
-        //              message: "The pipeline ${currentBuild.fullDisplayName} completed successfully.")
-        // }
-        // failure {
-        //     slackSend (color: '#FF0000', message: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
-        // }
     }
 }
