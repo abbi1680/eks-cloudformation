@@ -43,10 +43,10 @@ pipeline {
         stage('Push Container Image') {
             steps {
                 script {
-                    def image = "${env.registry}:${env.BUILD_ID}"
+                    def resnetImage = docker.build registry + ":${env.BUILD_ID}"
                     docker.withRegistry( '', "${env.registryCredential}" ) {
-                        image.push()
-                        image.push('latest')
+                        resnetImage.push()
+                        resnetImage.push('latest')
                     }
                 }
             }
@@ -92,6 +92,5 @@ pipeline {
         failure {
             slackSend (color: '#FF0000', message: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
         }
-
     }
 }
