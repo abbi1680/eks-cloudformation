@@ -56,6 +56,17 @@ pipeline {
                 }
             }
         }
+        stage('GitOps k8s Deploy') {
+            steps {
+                script {
+                    sh """
+                        git add ./resnet-server/resnet-deployment.yml
+                        git commit -m "Update resnet-server image to ${env.registry}:${env.BUILD_ID}"
+                    """
+                    }
+                }
+            }
+        }
     }
     /* Cleanup workspace */
     post {
