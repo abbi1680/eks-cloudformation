@@ -71,7 +71,7 @@ pipeline {
             }
         }
     }
-    /* Cleanup workspace */
+    /* Cleanup */
     post {
         always {
            echo "Cleaning up directory"
