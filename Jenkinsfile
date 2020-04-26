@@ -64,7 +64,7 @@ pipeline {
                         ./tools/updateImage.sh ${env.registry}:${env.BUILD_ID} ${deploymentConfig}
                         git add ${deploymentConfig}
                         git commit -m "Update resnet-server image to ${env.registry}:${env.BUILD_ID}"
-                        git push
+                        git push origin master --force
                        """
                     }
                 }
