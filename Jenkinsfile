@@ -59,10 +59,13 @@ pipeline {
         stage('GitOps k8s Deploy') {
             steps {
                 script {
+                    def deploymentConfig = "./resnet-server/resnet-deployment.yml"
                     sh """
-                        git add ./resnet-server/resnet-deployment.yml
+                        ./tools/updateImage.sh ${env.registry}:${env.BUILD_ID} ${deploymentConfig}
+                        git add ${deploymentConfig}
                         git commit -m "Update resnet-server image to ${env.registry}:${env.BUILD_ID}"
-                    """
+                        git push
+                       """
                     }
                 }
             }
