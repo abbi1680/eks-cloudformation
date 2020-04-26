@@ -46,6 +46,8 @@ aws eks --region us-west-2 update-kubeconfig --name KubernetesCluster
 
 ### Enable GitOps 
 
+By install a flux agent in our cluster, any changes to this repo are picked up automatically and applied on the cluster
+
 EKSCTL_EXPERIMENTAL=true \
     eksctl enable repo \
         --git-url git@github.com:mansong1/eks-cloudformation.git \
