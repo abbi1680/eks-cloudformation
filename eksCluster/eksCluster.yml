@@ -6,46 +6,72 @@ Description: >
 Parameters:
 
   EnvironmentName:
-    Description: An Environment name that will be prefixed to resources
+    Description: An environment name that will be prefixed to resources
+    Type: String
+  
+  EKSARNRole:
+    Description: EKS ARN Role
+    Type: String
+  
+  ClusterName:
+    Description: Name of EKS Cluster
     Type: String
 
-  NumberOfWorkerNodes:
-    Description: Nubmer of desired worker nodes
+  NodeAutoScalingGroupDesiredCapacity:
     Type: Number
-  
-  VPCStackName:
-    Description: Name for vpcstack to import values
+    Description: Desired capacity of Node Group ASG.
+
+  NodeAutoScalingGroupMinSize:
+    Type: Number
+    Description: Minimum size of Node Group ASG.
+
+  NodeAutoScalingGroupMaxSize:
+    Type: Number
+    Description: Maximum size of Node Group ASG. Set to at least 1 greater than NodeAutoScalingGroupDesiredCapacity.
+
+  NodeGroupName:
+    Description: Unique identifier for the Node Group.
     Type: String
-  
+
+  NodeImageId:
+    Type: AWS::EC2::Image::Id
+    Description: AMI id for the node instances.
+
+  NodeInstanceType:
+    Description: EC2 instance type for the node instances
+    Type: String
+
+  KeyName:
+    Description: The EC2 Key Pair to allow SSH access to the instances
+    Type: AWS::EC2::KeyPair::KeyName
+
+  NodeVolumeSize:
+    Type: Number
+    Description: Node volume size
 
 Resources:
 
-  # EKS Cluster
-  UdacityCapstoneEKSCluster:
+  ClusterControlPlaneSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: Allow http to our hosts and SSH from local only
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${EnvironmentName}-VPCID"
+  
+  KubernetesCluster:
     Type: AWS::EKS::Cluster
     Properties:
-      Version: '1.15'
-      RoleArn: arn:aws:iam::803823249935:role/ClusterRole
+      Name: KubernetesCluster
       ResourcesVpcConfig:
-        SecurityGroupIds:
-        - Fn::ImportValue:
-            !Sub "${VPCStackName}-Sec"
+        SecurityGroupIds: 
+          - !Ref 'ClusterControlPlaneSecurityGroup'
         SubnetIds:
-            Fn::Split:
-                - ","
-                - Fn::ImportValue:
-                      Fn::Sub: ${VPCStackName}-Priv-Subnets
+          - Fn::ImportValue: !Sub ${EnvironmentName}-PRI1-SN
+          - Fn::ImportValue: !Sub ${EnvironmentName}-PRI2-SN
+      RoleArn: !Sub ${EKSARNRole}
 
-  # ClusterWorkerNodes
-
-  WorkerNodeInstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Path: "/"
-      Roles:
-      - !Ref WorkerNodeInstanceRole
-  
-  WorkerNodeInstanceRole:
+  NodeInstanceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -63,121 +89,136 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
   
-
-  WorkerNodesSecurityGroup:
-      Type: AWS::EC2::SecurityGroup
-      Properties:
-        GroupDescription: Security group for the nodes.
-        VpcId:
-          Fn::ImportValue: !Sub "${VPCStackName}-VPCID"
-        SecurityGroupIngress:
-          - IpProtocol: tcp
-            FromPort: 0
-            ToPort: 65535
-            CidrIp: 0.0.0.0/0
-          - IpProtocol: tcp
-            FromPort: 1025
-            ToPort: 65535
-            CidrIp: 0.0.0.0/0
-          - IpProtocol: tcp
-            FromPort: 443
-            ToPort: 443
-            CidrIp: 0.0.0.0/0
-        SecurityGroupEgress:
-          - IpProtocol: tcp
-            FromPort: 0
-            ToPort: 65535
-            CidrIp: 0.0.0.0/0
-          - IpProtocol: tcp
-            FromPort: 1025
-            ToPort: 65535
-            CidrIp: 0.0.0.0/0
-          - IpProtocol: tcp
-            FromPort: 443
-            ToPort: 443
-            CidrIp: 0.0.0.0/0
-        Tags:
-        - Key: 
-            Fn::Sub:
-                - "kubernetes.io/cluster/${EksId}"
-                - EksId: !Ref UdacityCapstoneEKSCluster
-          Value: "owned"
-
-  WorkderNodesAutoScalingGroup:
-      UpdatePolicy:
-        AutoScalingRollingUpdate:
-          MaxBatchSize: "1"
-          MinInstancesInService: "3"
-          PauseTime: "PT5M"
-      Type: AWS::AutoScaling::AutoScalingGroup
-      Properties:
-        DesiredCapacity: !Ref NumberOfWorkerNodes
-        LaunchConfigurationName: !Ref WorkerNodeLaunchConfiguration
-        MinSize: 1
-        MaxSize: 4
-        VPCZoneIdentifier:
-          Fn::Split:
-              - ","
-              - Fn::ImportValue:
-                  Fn::Sub: ${VPCStackName}-Priv-Subnets
-        Tags:
-          - Key: Name
-            Value: 
-              Fn::Sub:
-                    - "${EksId}-CapstoneNodesGroup-Node"
-                    - EksId: !Ref UdacityCapstoneEKSCluster
-            PropagateAtLaunch: "true"
-          - Key: 
-              Fn::Sub:
-                    - "kubernetes.io/cluster/${EksId}"
-                    - EksId: !Ref UdacityCapstoneEKSCluster
-            Value: "owned"
-            PropagateAtLaunch: "true"
-
-  WorkerNodeLaunchConfiguration:
-      Type: AWS::AutoScaling::LaunchConfiguration
-      Properties:
-        AssociatePublicIpAddress: true
-        IamInstanceProfile: !Ref WorkerNodeInstanceProfile
-        ImageId: ami-0f53c7a1236d06961
-        InstanceType: t2.medium
-        SecurityGroups:
-        - !Ref WorkerNodesSecurityGroup
-        BlockDeviceMappings:
-          - DeviceName: /dev/xvda
-            Ebs:
-              VolumeSize: 8
-              VolumeType: gp2
-              DeleteOnTermination: true
-        UserData:
-          Fn::Base64:
-            Fn::Sub:
-              - |
-                  #!/bin/bash
-                  set -o xtrace
-                  /etc/eks/bootstrap.sh ${EksId}
-                  /opt/aws/bin/cfn-signal --exit-code $? \
-                            --stack  ${AWS::StackName} \
-                            --resource WorkerNodesAutoScalingGroup  \
-                            --region ${AWS::Region}
-              - EksId: !Ref UdacityCapstoneEKSCluster
-
-Outputs:
-
-  EKSId:
-    Description: The EKS ID.
-    Value: !Ref UdacityCapstoneEKSCluster
-    Export: 
-        Name: !Sub ${AWS::StackName}-ClusterID
+  NodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+      - !Ref NodeInstanceRole
   
-  WorkerNodeInstanceRole:
-    Description: The node instance role
-    Value: !GetAtt WorkerNodeInstanceRole.Arn
-    Export: 
-      Name: !Sub ${AWS::StackName}-InstRole
+  NodeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for all nodes in the cluster
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${EnvironmentName}-VPCID" 
+      Tags:
+      - Key: !Sub "kubernetes.io/cluster/${ClusterName}"
+        Value: 'owned'
   
-  WorkerNodesSecurityGroup:
-    Description: The security group for the nodes.
-    Value: !Ref WorkerNodesSecurityGroup
-    Export:
-      Name: !Sub ${AWS::StackName}-NodeSecGrp
+  NodeSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow node to communicate with each other
+      GroupId: !Ref NodeSecurityGroup
+      SourceSecurityGroupId: !Ref NodeSecurityGroup
+      IpProtocol: '-1'
+      FromPort: 0
+      ToPort: 65535
+  
+  NodeSecurityGroupFromControlPlaneIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow worker Kubelets and pods to receive communication from the cluster control plane
+      GroupId: !Ref NodeSecurityGroup
+      SourceSecurityGroupId: !Ref ClusterControlPlaneSecurityGroup
+      IpProtocol: tcp
+      FromPort: 1025
+      ToPort: 65535
+  
+  ControlPlaneEgressToNodeSecurityGroup:
+    Type: AWS::EC2::SecurityGroupEgress
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow the cluster control plane to communicate with worker Kubelet and pods
+      GroupId: !Ref ClusterControlPlaneSecurityGroup
+      DestinationSecurityGroupId: !Ref NodeSecurityGroup
+      IpProtocol: tcp
+      FromPort: 1025
+      ToPort: 65535
+  
+  NodeSecurityGroupFromControlPlaneOn443Ingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow pods running extension API servers on port 443 to receive communication from cluster control plane
+      GroupId: !Ref NodeSecurityGroup
+      SourceSecurityGroupId: !Ref ClusterControlPlaneSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+  
+  ControlPlaneEgressToNodeSecurityGroupOn443:
+    Type: AWS::EC2::SecurityGroupEgress
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow the cluster control plane to communicate with pods running extension API servers on port 443
+      GroupId: !Ref ClusterControlPlaneSecurityGroup
+      DestinationSecurityGroupId: !Ref NodeSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+  
+  ClusterControlPlaneSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow pods to communicate with the cluster API Server
+      GroupId: !Ref ClusterControlPlaneSecurityGroup
+      SourceSecurityGroupId: !Ref NodeSecurityGroup
+      IpProtocol: tcp
+      ToPort: 443
+      FromPort: 443
+  
+  NodeGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      DesiredCapacity: !Ref NodeAutoScalingGroupDesiredCapacity
+      LaunchConfigurationName: !Ref NodeLaunchConfig
+      MinSize: !Ref NodeAutoScalingGroupMinSize
+      MaxSize: !Ref NodeAutoScalingGroupMaxSize
+      VPCZoneIdentifier:
+        - Fn::ImportValue: !Sub ${EnvironmentName}-PRI1-SN
+        - Fn::ImportValue: !Sub ${EnvironmentName}-PRI2-SN
+      Tags:
+      - Key: Name
+        Value: !Sub "${ClusterName}-${NodeGroupName}-Node"
+        PropagateAtLaunch: 'true'
+      - Key: !Sub 'kubernetes.io/cluster/${ClusterName}'
+        Value: 'owned'
+        PropagateAtLaunch: 'true'
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: '1'
+        MinInstancesInService: !Ref NodeAutoScalingGroupDesiredCapacity
+        PauseTime: 'PT5M'
+  
+  NodeLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      AssociatePublicIpAddress: 'true'
+      IamInstanceProfile: !Ref NodeInstanceProfile
+      ImageId: !Ref NodeImageId
+      InstanceType: !Ref NodeInstanceType
+      KeyName: !Ref KeyName
+      SecurityGroups:
+      - !Ref NodeSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: !Ref NodeVolumeSize
+            VolumeType: gp2
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            set -o xtrace
+            /etc/eks/bootstrap.sh ${ClusterName}
+            /opt/aws/bin/cfn-signal --exit-code $? \
+                      --stack  ${AWS::StackName} \
+                      --resource NodeGroup  \
+                      --region us-west-2
