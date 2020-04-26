@@ -25,11 +25,15 @@
 	},
 	{
 		"ParameterKey": "NodeGroupName",
-		"ParameterValue": "eksworkernodes"
+		"ParameterValue": "worker-nodes"
 	},	
 	{
 		"ParameterKey": "NodeAutoScalingGroupDesiredCapacity",
 		"ParameterValue": "3"
+	},
+	{
+		"ParameterKey": "NodeImageId",
+		"ParameterValue": "ami-0f53c7a1236d06961"
 	},
 	{
 		"ParameterKey": "NodeInstanceType",

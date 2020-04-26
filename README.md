@@ -35,6 +35,21 @@ spec:
 
 
 
-## GitOps
+## Creating Cluster
 
-We will be using GitOps methodology to manage deployments into our cluster. See [here](https://eksctl.io/gitops-quickstart/setup-gitops/)
+We will be using `eksctl` to create our EKS Cluster. 
+
+eksctl create cluster -f cluster.yaml
+
+###  Create kubeconfig
+aws eks --region us-west-2 update-kubeconfig --name KubernetesCluster
+
+### Enable GitOps 
+
+EKSCTL_EXPERIMENTAL=true \
+    eksctl enable repo \
+        --git-url git@github.com:mansong1/eks-cloudformation.git \
+        --git-email martin.ansong@gmail.com \
+        --cluster KubernetesCluster \
+        --region us-west-2
+        --with-helm=false
