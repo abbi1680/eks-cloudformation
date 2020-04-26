@@ -89,10 +89,14 @@ Resources:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [ 0, !GetAZs  '' ]
       CidrBlock: !Ref PrivateSubnet1CIDR
-      MapPublicIpOnLaunch: false
+      MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName} Private Subnet (AZ1)
+        - Key: KubernetesCluster
+          Value: KubernetesCluster
+        - Key: kubernetes.io/role/elb
+          Value: 1
 
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
@@ -100,10 +104,14 @@ Resources:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [ 1, !GetAZs  '' ]
       CidrBlock: !Ref PrivateSubnet2CIDR
-      MapPublicIpOnLaunch: false
+      MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName} Private Subnet (AZ2)
+        - Key: KubernetesCluster
+          Value: KubernetesCluster
+        - Key: kubernetes.io/role/elb
+          Value: 1
 
   NatGateway1EIP:
     Type: AWS::EC2::EIP
@@ -200,27 +208,8 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable2
       SubnetId: !Ref PrivateSubnet2
 
-  EKSSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      VpcId: !Ref VPC
-      GroupDescription: EKS security group for EKS.
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 1025
-          ToPort: 65535
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
-      SecurityGroupEgress:
-        - IpProtocol: tcp
-          FromPort: 1025
-          ToPort: 65535
-          CidrIp: 0.0.0.0/0
-
 Outputs:
+
   VPC:
     Description: A reference to the created VPC
     Value: !Ref VPC
@@ -254,9 +243,3 @@ Outputs:
   PrivateSubnet2:
     Description: A reference to the private subnet in the 2nd Availability Zone
     Value: !Ref PrivateSubnet2
-
-  SecurityGroup:
-    Description: Security group with no ingress rule
-    Value: !Ref EKSSecurityGroup
-    Export:
-      Name: !Sub ${AWS::StackName}-Sec
