@@ -18,12 +18,5 @@ spec:
             value: '4'
           - name: TENSORFLOW_INTER_OP_PARALLELISM
             value: '4'
-        resources:
-          requests:
-            memory: "1Gi"
-            cpu: "1Gi"
-          limits:
-            memory: "5Gi"
-            cpu: "5Gi"
         ports:
         - containerPort: 8500
