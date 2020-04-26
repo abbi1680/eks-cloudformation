@@ -2,6 +2,7 @@ Description: >
     Martin Ansong / Udactiy 2020 
     This template deploys an Amazon EKS Cluster and Worker nodes 
     Based on https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html
+    NodeGroup Security based on https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html
 
 Parameters:
 
