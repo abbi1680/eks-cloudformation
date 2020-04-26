@@ -66,7 +66,6 @@ pipeline {
                         git commit -m "Update resnet-server image to ${env.registry}:${env.BUILD_ID}"
                         git push origin master --force
                        """
-                    }
                 }
             }
         }
