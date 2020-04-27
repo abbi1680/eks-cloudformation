@@ -60,8 +60,12 @@ pipeline {
             steps {
                 script {
                     def deploymentConfig = "./resnet-server/resnet-deployment.yml"
+                    def data = readYaml file: deploymentConfig
+                    data.spec.template.spec.containers.image = "${env.registry}:${env.BUILD_ID}"
+                    sh "rm ${deploymentConfig}"
+                    writeYaml file: deploymentConfig, data: data
+                    sh "cat ${deploymentConfig}"
                     sh """
-                        ./tools/updateImage.sh ${env.registry}:${env.BUILD_ID} ${deploymentConfig}
                         git add ${deploymentConfig}
                         git commit -m "Update resnet-server image to ${env.registry}:${env.BUILD_ID}"
                         git push origin master --force
