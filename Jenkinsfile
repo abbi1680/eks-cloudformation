@@ -65,11 +65,14 @@ pipeline {
                     sh "rm ${deploymentConfig}"
                     writeYaml file: deploymentConfig, data: data
                     sh "cat ${deploymentConfig}"
-                    sh """
+                    sshagent(credentials: ['githubssh']) {
+                        sh """
+                        git remote set-url origin git@github.com:mansong1/eks-cloudformation.git
                         git add ${deploymentConfig}
                         git commit -m "Update resnet-server image to ${env.registry}:${env.BUILD_ID}"
                         git push origin master --force
                        """
+                    }
                 }
             }
         }

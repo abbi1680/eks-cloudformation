@@ -15,3 +15,5 @@ RUN echo "jenkins ALL=NOPASSWD: ALL" >> /etc/sudoers
 RUN curl -fsSL https://get.docker.com/ | sh
 
 USER jenkins
+
+RUN git config --global user.name "Jenkins"
