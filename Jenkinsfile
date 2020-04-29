@@ -60,17 +60,20 @@ pipeline {
             steps {
                 script {
                     def deploymentConfig = "./resnet-server/resnet-deployment.yml"
-                    def data = readYaml file: deploymentConfig
-                    data.spec.template.spec.containers.image = "${env.registry}:${env.BUILD_ID}"
-                    sh "rm ${deploymentConfig}"
-                    writeYaml file: deploymentConfig, data: data
+                    def imageTag = "${env.registry}" + ":${env.BUILD_ID}"
+                    def gitUrl = "git@github.com:mansong1/eks-cloudformation.git"
+                    sh """
+                        sed -i 's|image: .*$|image: ${imageTag}|' ${deploymentConfig}
+                    """
                     sh "cat ${deploymentConfig}"
                     sshagent(credentials: ['githubssh']) {
                         sh """
-                        git remote set-url origin git@github.com:mansong1/eks-cloudformation.git
-                        git add ${deploymentConfig}
-                        git commit -m "Update resnet-server image to ${env.registry}:${env.BUILD_ID}"
-                        git push origin master --force
+                            git config --global user.email "jenkins@minikube"
+                            git config --global user.name "Jenkins"
+                            git remote set-url origin ${gitUrl}
+                            git add ${deploymentConfig}
+                            git commit -m "Update resnet-server image to ${imageTag}"
+                            git push origin master --force
                        """
                     }
                 }
