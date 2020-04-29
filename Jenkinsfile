@@ -5,6 +5,7 @@ pipeline {
     environment {
         registry = "mansong/resnet_tfserving"
         registryCredential = "dockerhub"
+        GIT_SSH_COMMAND = "ssh -o StrictHostKeyChecking=no"
     }
     stages {
         stage('Lint Dockerfile') {
