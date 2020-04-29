@@ -83,6 +83,16 @@ pipeline {
         }
     }
     post {
+        success {
+            slackSend ( channel: 'microservices', 
+                        color: 'good', 
+                        message: "SUCCESSFUL: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL}), Image ${env.registry}:${env.BUILD_ID} deployed", 
+                        notifyCommitters: true, 
+                        tokenCredentialId: 'slack' )
+        }
+        failure {
+            slackSend (color: 'danger', message: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})", notifyCommitters: true, tokenCredentialId: 'slack' )
+        }
         always {
            echo "Cleaning up directory"
            deleteDir()
