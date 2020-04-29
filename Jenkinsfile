@@ -67,7 +67,6 @@ pipeline {
                     config.spec.template.spec.containers[0].image = imageTag
                     sh "rm ${deploymentConfig}"
                     writeYaml file: deploymentConfig, data: config
-                    sh "cat ${deploymentConfig}"
                     sshagent(credentials: ['githubssh']) {
                         sh """
                             git config --global user.email "jenkins@minikube"
