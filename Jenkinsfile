@@ -62,9 +62,10 @@ pipeline {
                     def deploymentConfig = "./resnet-server/resnet-deployment.yml"
                     def imageTag = "${env.registry}" + ":${env.BUILD_ID}"
                     def gitUrl = "git@github.com:mansong1/eks-cloudformation.git"
-                    sh """
-                        sed -i "" "/^\\([[:space:]]*image: \\).*/s//\\1${imageTag}/" ${deploymentConfig}
-                    """
+                    def config = readYaml file: deploymentConfig
+                    config.spec.template.spec.containers[0].image = imageTag
+                    sh "rm ${deploymentConfig}"
+                    writeYaml file: deploymentConfig, data: config
                     sh "cat ${deploymentConfig}"
                     sshagent(credentials: ['githubssh']) {
                         sh """
