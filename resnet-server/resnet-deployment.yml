@@ -12,11 +12,11 @@ spec:
     spec:
       containers:
       - name: resnet-container
-        image: mansong/resnet_tfserving:latest
+        image: mansong/resnet_tfserving:33
         env:
-          - name: TENSORFLOW_INTRA_OP_PARALLELISM
-            value: '4'
-          - name: TENSORFLOW_INTER_OP_PARALLELISM
-            value: '4'
+        - name: TENSORFLOW_INTRA_OP_PARALLELISM
+          value: '4'
+        - name: TENSORFLOW_INTER_OP_PARALLELISM
+          value: '4'
         ports:
         - containerPort: 8500
