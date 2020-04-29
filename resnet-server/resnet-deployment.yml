@@ -12,7 +12,7 @@ spec:
     spec:
       containers:
       - name: resnet-container
-        image: mansong/resnet_tfserving:33
+        image: mansong/resnet_tfserving:34
         env:
         - name: TENSORFLOW_INTRA_OP_PARALLELISM
           value: '4'
