@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+    namespace: staging
+    labels:
+        run: api-service
+    name: api-service
+spec:
+    ports:
+    - port: 3000
+      targetPort: 3000
+    selector:
+        app: api
+    type: LoadBalancer
