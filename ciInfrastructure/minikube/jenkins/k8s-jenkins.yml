@@ -51,7 +51,7 @@ subjects:
       name: jenkins
 
 ---
-    
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -122,6 +122,9 @@ spec:
                   name: jenkins
                   securityContext:
                     privileged: true
+                  env:
+                    - name: JAVA_OPTS
+                      value: "-Xmx2048m -Djava.awt.headless=true -Dhudson.model.DirectoryBrowserSupport.CSP=\"default-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src data:;\""
                   volumeMounts:
                     - name: kubeconfig
                       mountPath: /var/jenkins_home/.kube
