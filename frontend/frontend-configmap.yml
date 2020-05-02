@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 data:
     config.js: |
-        window.REACT_APP_BACKEND_URL='http://api-service:3000';
+        window.REACT_APP_BACKEND_URL='http://api-svc';
 metadata:
     name: frontend-config
     namespace: staging
