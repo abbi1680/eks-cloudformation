@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+    namespace: staging
+    labels:
+        run: resnet-svc
+    name: resnet-svc
+spec:
+    ports:
+    - port: 8500
+      targetPort: 8500
+    selector:
+        app: resnet-server
+    type: LoadBalancer
