@@ -5,10 +5,12 @@ metadata:
     labels:
         run: resnet-svc
     name: resnet-svc
+    annotations:
+        service.beta.kubernetes.io/aws-load-balancer-internal: "true"
 spec:
     ports:
     - port: 8500
       targetPort: 8500
     selector:
         app: resnet-server
-    type: LoadBalancer
+    type: ClusterIP

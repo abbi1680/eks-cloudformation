@@ -5,6 +5,8 @@ metadata:
     labels:
         run: frontend-svc
     name: frontend-svc
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-internal: "true"
 spec:
   ports:
     - name: http

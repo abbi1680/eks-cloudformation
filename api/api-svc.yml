@@ -5,10 +5,13 @@ metadata:
     labels:
         run: api-svc
     name: api-svc
+    annotations:
+        service.beta.kubernetes.io/aws-load-balancer-internal: "true"
 spec:
     ports:
     - port: 3000
       targetPort: 3000
+      protocol: TCP
     selector:
         app: api
-    type: LoadBalancer
+    type: ClusterIP
