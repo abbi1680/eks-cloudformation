@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: resnet-server
+  name: resnet-server
+  namespace: staging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resnet-server
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: resnet-server
+    spec:
+      containers:
+      - image: mansong/resnet_tfserving:35
+        name: resnet-container
+        env:
+          - name: TENSORFLOW_INTRA_OP_PARALLELISM
+            value: '4'
+          - name: TENSORFLOW_INTER_OP_PARALLELISM
+            value: '4'
+        ports:
+          - containerPort: 8500

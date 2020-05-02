@@ -26,6 +26,8 @@ spec:
       - image: mansong/go-imageclassifierapi:latest
         imagePullPolicy: Always
         name: go-imageclassifierapi
+        ports:
+            - containerPort: 3000
         env:
         - name: SERVER_HOST
           value: resnet-service
